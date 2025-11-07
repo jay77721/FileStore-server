@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>用户主页 - 网盘系统</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #74b9ff, #a29bfe);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 60px 20px;
+        }
+        .container {
+            width: 800px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(18px);
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+            color: #fff;
+            padding: 35px 45px;
+            animation: fadeIn 0.6s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+        .userinfo {
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            text-align: center;
+        }
+        .userinfo p {
+            margin: 8px 0;
+            font-size: 16px;
+            color: #f0f0f0;
+        }
+        .upload-section {
+            margin-bottom: 35px;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 10px auto 20px;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            width: 80%;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-size: 14px;
+        }
+        button, input[type="submit"] {
+            background: linear-gradient(135deg, #0984e3, #00cec9);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 10px 18px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        button:hover, input[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 12px;
+            overflow: hidden;
+            text-align: center;
+        }
+        th, td {
+            padding: 10px;
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            font-size: 14px;
+        }
+        th {
+            background: rgba(0,0,0,0.2);
+        }
+        tr:hover td {
+            background: rgba(255,255,255,0.25);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🌊 欢迎来到个人网盘</h1>
+
+    <div class="userinfo">
+        <p>用户名：<span id="username">加载中...</span></p>
+        <p>上次登录时间：<span id="regtime">加载中...</span></p>
+    </div>
+
+    <div class="upload-section">
+        <h3>📤 上传文件</h3>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" id="fileInput" name="file" required>
+            <input type="submit" value="开始上传">
+        </form>
+    </div>
+
+    <div class="file-list">
+        <h3>📁 我的文件</h3>
+        <table id="fileTable">
+            <thead>
+            <tr>
+                <th>文件名</th>
+                <th>大小 (KB)</th>
+                <th>上传时间</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr><td colspan="4">正在加载文件列表...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $.ajax({
+            url: "/user/info",
+            type: "POST",
+            dataType: "json",
+            success: function(data) {
+                $("#username").text(data.username);
+                $("#regtime").text(data.regtime);
+            },
+            error: function() {
+                alert("无法获取用户信息，请重新登录。");
+                window.location.href = "/static/view/signin.html";
+            }
+        });
+        loadFileList();
+    });
+
+    $("#uploadForm").submit(function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+        $.ajax({
+            url: "/file/upload",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(resp) {
+                alert("文件上传成功！");
+                loadFileList();
+            },
+            error: function() {
+                alert("文件上传失败！");
+            }
+        });
+    });
+
+    function loadFileList() {
+        $.ajax({
+            url: "/file/query",
+            type: "GET",
+            dataType: "json",
+            success: function(files) {
+                var tbody = $("#fileTable tbody");
+                tbody.empty();
+                if (files.length === 0) {
+                    tbody.append("<tr><td colspan='4'>暂无文件</td></tr>");
+                } else {
+                    files.forEach(function(file) {
+                        tbody.append(
+                            "<tr>" +
+                            "<td>" + file.filename + "</td>" +
+                            "<td>" + file.size + "</td>" +
+                            "<td>" + file.upload_time + "</td>" +
+                            "<td><a href='/file/download?filehash=" + file.filehash + "' style='color:#00ffe1;'>下载</a></td>" +
+                            "</tr>"
+                        );
+                    });
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>

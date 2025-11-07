@@ -5,6 +5,7 @@ import (
 	"filestore-server/util"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 const (
@@ -71,10 +72,46 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SigninHandler :登录接口
 func SigninHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		http.ServeFile(w, r, "./static/view/signin.html")
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		fmt.Println("ParseMultipartForm error:", err)
+		w.Write([]byte("fail"))
 		return
 	}
-	// 后续可以添加登录 POST 逻辑
+	username := r.PostFormValue("username")
+	password := r.PostFormValue("password")
+	if len(username) == 0 || len(password) == 0 {
+		fmt.Println("username or password empty")
+		w.Write([]byte("fail"))
+		return
+	}
+
+	encPasswd := util.Sha1([]byte(password + pwd_salt))
+
+	//1.校验用户名和密码
+	pwdChecked := dblayer.UserSignin(username, encPasswd)
+	if !pwdChecked {
+		w.Write([]byte("fail"))
+		return
+	}
+
+	//2.生成访问凭证（token）
+	token := GenToken(username)
+	upRes := dblayer.UpdateToken(username, token)
+	if !upRes {
+		w.Write([]byte("fail"))
+		return
+	}
+
+	//3.登录成功后重定向到首页
+	w.Write([]byte("success"))
+	return
+}
+
+func GenToken(username string) string {
+	// 40位字符 ： md5(username + timestamp + token_salt) + timestamp[:8]
+	ts := fmt.Sprintf("%x", time.Now().Unix())
+	tokenPrefix := util.MD5([]byte(username + ts + "_tokensalt"))
+	return tokenPrefix + ts[:8]
 }

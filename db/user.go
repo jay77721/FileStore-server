@@ -34,5 +34,86 @@ func UserSignup(username string, password string) bool {
 	}
 
 	fmt.Println("Rows affected:", rowsAffected)
+	if rowsAffected == 0 {
+		fmt.Println("User already exists, signup failed")
+		return false
+	}
+
+	return true
+}
+
+func UserSignin(username string, encpwd string) bool {
+	//db := mydb.DBConn()
+	//fmt.Println("DB connection:", db)
+	//
+
+	//db := mydb.DBConn()
+	//var version, dbName string
+	//err := db.QueryRow("SELECT VERSION()").Scan(&version)
+	//if err != nil {
+	//	fmt.Println("Version query error:", err)
+	//} else {
+	//	fmt.Println("MySQL version:", version)
+	//}
+	//
+	//err = db.QueryRow("SELECT DATABASE()").Scan(&dbName)
+	//if err != nil {
+	//	fmt.Println("Database query error:", err)
+	//} else {
+	//	fmt.Println("Current database:", dbName)
+	//}
+	db := mydb.DBConn()
+	rows, err := db.Query("SELECT user_name,user_pwd FROM tbl_user")
+	if err != nil {
+		fmt.Println("Query error:", err)
+	}
+	for rows.Next() {
+		var uname, pwd string
+		rows.Scan(&uname, &pwd)
+		fmt.Printf("DB row: [%s] [%s]\n", uname, pwd)
+	}
+	defer rows.Close()
+
+	stmt, err := mydb.DBConn().Prepare("SELECT user_pwd FROM tbl_user WHERE user_name=? limit 1")
+	if err != nil {
+		fmt.Println("Failed to prepare statement ,err" + err.Error())
+		return false
+	}
+	defer stmt.Close()
+
+	//测试
+	fmt.Printf("Login attempt, username:[%s], password:[%s]\n", username, encpwd)
+
+	var storedPwd string
+	err = stmt.QueryRow(username).Scan(&storedPwd)
+	if err != nil {
+		fmt.Println("User does not exist, username:", username)
+		return false
+	}
+
+	//比较密码是否一致
+	if storedPwd != encpwd {
+		fmt.Println("Password mismathch for user,username :" + username)
+		return false
+	}
+	fmt.Println("User login success:" + username)
+	return true
+}
+
+// UpdateToken:刷新用户登录的token
+func UpdateToken(username string, token string) bool {
+	stmt, err := mydb.DBConn().Prepare(
+		"replace into tbl_user_token(`user_name`,`user_token`) values (?,?)")
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(username, token)
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
 	return true
 }

@@ -32,10 +32,13 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		os.MkdirAll("./uploads", 0755)
 		dstPath := filepath.Join("./uploads", header.Filename)
 
+		loc, _ := time.LoadLocation("Asia/Shanghai")
+		now := time.Now().In(loc)
+
 		fileMeta := meta.FileMeta{
 			FileName: header.Filename,
 			Location: dstPath,
-			UploadAt: time.Now(),
+			UploadAt: now,
 		}
 
 		dst, err := os.Create(fileMeta.Location)

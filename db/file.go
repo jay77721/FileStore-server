@@ -4,20 +4,21 @@ import (
 	"database/sql"
 	mydb "filestore-server/db/mysql"
 	"fmt"
+	"time"
 )
 
 // OnFileUploadFinished:文件上传完成，保持meta
-func OnFileUploadFinished(filehash string, filename string, filesize int64, fileaddr string) bool {
+func OnFileUploadFinished(filehash string, filename string, filesize int64, fileaddr string, uploadAt time.Time) bool {
 	stmt, err := mydb.DBConn().Prepare(
-		"insert ignore into tbl_file(`file_sha1`,`file_name`,`file_size`,`file_addr`,status)" +
-			" values(?,?,?,?,1)")
+		"insert ignore into tbl_file(`file_sha1`,`file_name`,`file_size`,`file_addr`,`create_at`,status)" +
+			" values(?,?,?,?,?,1)")
 	if err != nil {
 		fmt.Println("failed to prepared statement,err:" + err.Error())
 		return false
 	}
 	defer stmt.Close()
 
-	ret, err := stmt.Exec(filehash, filename, filesize, fileaddr)
+	ret, err := stmt.Exec(filehash, filename, filesize, fileaddr, uploadAt)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
@@ -36,6 +37,7 @@ type TableFile struct {
 	FileName sql.NullString
 	FileSize sql.NullInt64
 	FileAddr sql.NullString
+	CreateAt sql.NullTime
 }
 
 // GetFileMeta 从MySQL获取文件元信息

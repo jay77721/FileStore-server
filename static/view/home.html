@@ -105,7 +105,7 @@
 
     <div class="userinfo">
         <p>用户名：<span id="username">加载中...</span></p>
-        <p>上次登录时间：<span id="regtime">加载中...</span></p>
+        <p>注册时间：<span id="signupat">加载中...</span></p>
     </div>
 
     <div class="upload-section">
@@ -136,13 +136,40 @@
 
 <script>
     $(document).ready(function() {
+
+        // 从 URL 获取 token 和 username
+        const params = new URLSearchParams(window.location.search);
+        const username = params.get("username");
+        const token = params.get("token");
+
+        if (!username || !token) {
+            alert("登录信息缺失，请重新登录。");
+            window.location.href = "/static/view/signin.html";
+            return;
+        }
+
         $.ajax({
             url: "/user/info",
             type: "POST",
+            data: {
+                username: username,
+                token: token
+            },
             dataType: "json",
             success: function(data) {
-                $("#username").text(data.username);
-                $("#regtime").text(data.regtime);
+                // 后端返回 RespMsg 格式：{ code: 0, msg: "ok", data: {...} }
+                if (data.code === 0) {
+                    $("#username").text(data.data.Username);
+
+                    // 将 ISO8601 字符串转为本地时间显示
+                    const signupDate = new Date(data.data.SignupAt);
+                    const formatted = signupDate.toLocaleString(); // 本地时间字符串
+                    $("#signupat").text(formatted);
+
+                } else {
+                    alert("获取用户信息失败，请重新登录。");
+                    window.location.href = "/static/view/signin.html";
+                }
             },
             error: function() {
                 alert("无法获取用户信息，请重新登录。");

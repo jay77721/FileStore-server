@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <title>用户登录</title>
     <style>
         body {
@@ -142,7 +143,8 @@
         try {
             const response = await fetch("/user/signin", {
                 method: "POST",
-                body: formData
+                body: formData,
+                credentials: "include" // ✅ 必须加上
             });
             const result = await response.json();
             console.log("Server response:", result);
@@ -151,13 +153,12 @@
                 msg.style.color = "lightgreen";
                 msg.textContent = "登录成功！正在跳转...";
 
-                const token = result.data.Token;
-                const username = result.data.Username;
+
                 const location = result.data.Location;
 
                 //  带上 token 和用户名跳转
                 setTimeout(() => {
-                    window.location.href = `${location}?token=${token}&username=${username}`;
+                    window.location.href = location;
                 }, 1200);
             } else {
                 msg.style.color = "yellow";

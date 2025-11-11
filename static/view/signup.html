@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <title>用户注册</title>
     <style>
-        /* ====== 全局样式 ====== */
         body {
             margin: 0;
             padding: 0;
@@ -16,8 +16,6 @@
             justify-content: center;
             align-items: center;
         }
-
-        /* ====== 容器样式 ====== */
         .container {
             width: 380px;
             padding: 40px 45px;
@@ -28,97 +26,24 @@
             color: #fff;
             animation: fadeIn 0.6s ease-in-out;
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-15px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
+        h2 { text-align: center; font-weight: 600; margin-bottom: 30px; letter-spacing: 1px; color: #fff; }
+        .input-group { margin-bottom: 20px; position: relative; }
+        label { display: block; margin-bottom: 6px; color: #f0f0f0; font-size: 14px; letter-spacing: 0.5px; }
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 12px 14px; border-radius: 10px; border: none; font-size: 14px; outline: none;
+            color: #333; background: rgba(255, 255, 255, 0.9); transition: box-shadow 0.3s, transform 0.2s;
         }
-
-        h2 {
-            text-align: center;
-            font-weight: 600;
-            margin-bottom: 30px;
-            letter-spacing: 1px;
-            color: #fff;
-        }
-
-        /* ====== 输入框样式 ====== */
-        .input-group {
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            color: #f0f0f0;
-            font-size: 14px;
-            letter-spacing: 0.5px;
-        }
-
-        input[type="text"],
-        input[type="password"] {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 10px;
-            border: none;
-            font-size: 14px;
-            outline: none;
-            color: #333;
-            background: rgba(255, 255, 255, 0.9);
-            transition: box-shadow 0.3s, transform 0.2s;
-        }
-
-        input:focus {
-            box-shadow: 0 0 8px rgba(255,255,255,0.6);
-            transform: scale(1.02);
-        }
-
-        /* ====== 显示密码复选框 ====== */
-        .show-pwd {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: -8px;
-            margin-bottom: 12px;
-            font-size: 13px;
-            color: #eee;
-        }
-
-        /* ====== 按钮 ====== */
+        input:focus { box-shadow: 0 0 8px rgba(255,255,255,0.6); transform: scale(1.02); }
+        .show-pwd { display: flex; align-items: center; gap: 6px; margin-top: -8px; margin-bottom: 12px; font-size: 13px; color: #eee; }
         button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #0984e3, #00cec9);
-            border: none;
-            border-radius: 10px;
-            color: white;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.3s;
+            width: 100%; padding: 12px; background: linear-gradient(135deg, #0984e3, #00cec9);
+            border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 500;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.3s;
         }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        /* ====== 消息提示 ====== */
-        .msg {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 14px;
-            height: 20px;
-        }
-
-        /* ====== 响应式优化 ====== */
-        @media (max-width: 420px) {
-            .container {
-                width: 90%;
-                padding: 30px 25px;
-            }
-        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .msg { text-align: center; margin-top: 15px; font-size: 14px; height: 20px; }
+        @media (max-width: 420px) { .container { width: 90%; padding: 30px 25px; } }
     </style>
 </head>
 <body>
@@ -138,7 +63,7 @@
 
         <div class="input-group">
             <label for="confirm">确认密码：</label>
-            <input type="password" id="confirm" placeholder="请再次输入密码" required minlength="5">
+            <input type="password" id="confirm" name="confirm" placeholder="请再次输入密码" required minlength="5">
         </div>
 
         <div class="show-pwd">
@@ -152,49 +77,64 @@
 </div>
 
 <script>
-    const form = document.getElementById("signup-form");
-    const msg = document.getElementById("msg");
-    const password = document.getElementById("password");
-    const confirmPwd = document.getElementById("confirm");
-    const username = document.getElementById("username");
-    const showPwd = document.getElementById("showPwd");
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("signup-form");
+        const msg = document.getElementById("msg");
+        const username = document.getElementById("username");
+        const password = document.getElementById("password");
+        const confirmPwd = document.getElementById("confirm");
+        const showPwd = document.getElementById("showPwd");
 
-    // 切换显示密码
-    showPwd.addEventListener("change", () => {
-        const type = showPwd.checked ? "text" : "password";
-        password.type = type;
-        confirmPwd.type = type;
-    });
-
-    // 表单提交逻辑
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        msg.textContent = "";
-
-        if (password.value !== confirmPwd.value) {
-            msg.style.color = "yellow";
-            msg.textContent = "两次密码输入不一致！";
-            confirmPwd.focus();
-            return;
-        }
-
-        const formData = new FormData(form);
-        const response = await fetch("/user/signup", {
-            method: "POST",
-            body: formData
+        // 切换显示密码
+        showPwd.addEventListener("change", () => {
+            const type = showPwd.checked ? "text" : "password";
+            password.type = type;
+            confirmPwd.type = type;
         });
 
-        const text = await response.text();
-        if (text === "success") {
-            msg.style.color = "lightgreen";
-            msg.textContent = "注册成功！正在跳转...";
-            setTimeout(() => {
-                window.location.href = "/static/view/signin.html";
-            }, 1500);
-        } else {
-            msg.style.color = "yellow";
-            msg.textContent = "注册失败，请重试。";
-        }
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            msg.textContent = "";
+
+            console.log("Username input value:", username.value);
+            console.log("Password input value:", password.value);
+
+            if (password.value !== confirmPwd.value) {
+                msg.style.color = "yellow";
+                msg.textContent = "两次密码输入不一致！";
+                confirmPwd.focus();
+                return;
+            }
+
+            // 使用 URLSearchParams 发送 x-www-form-urlencoded
+            const params = new URLSearchParams();
+            params.append("username", username.value);
+            params.append("password", password.value);
+
+            try {
+                const response = await fetch("/user/signup", {
+                    method: "POST",
+                    body: params,
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+                });
+
+                const text = await response.text();
+                console.log("Server response:", text);
+
+                if (text === "success") {
+                    msg.style.color = "lightgreen";
+                    msg.textContent = "注册成功！正在跳转...";
+                    setTimeout(() => { window.location.href = "/static/view/signin.html"; }, 1500);
+                } else {
+                    msg.style.color = "yellow";
+                    msg.textContent = "注册失败，请重试。";
+                }
+            } catch (err) {
+                console.error(err);
+                msg.style.color = "yellow";
+                msg.textContent = "请求出错，请重试。";
+            }
+        });
     });
 </script>
 </body>

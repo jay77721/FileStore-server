@@ -21,11 +21,14 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//if err := r.ParseForm(); err != nil {
-	//	w.Write([]byte("parse form error"))
-	//	return
-	//}
+	if err := r.ParseForm(); err != nil {
+		w.Write([]byte("parse form error"))
+		return
+	}
 
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	fmt.Println("SignupHandler received username:", username, "password:", password)
 	//username := r.Form.Get("username")
 	//password := r.Form.Get("password")
 	//err := r.ParseMultipartForm(10 << 20) // 最大 10MB
@@ -34,29 +37,29 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	//	w.Write([]byte("fail"))
 	//	return
 	//}
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		fmt.Println("ParseMultipartForm error:", err)
-		w.Write([]byte("fail"))
-		return
-	}
-	usernameArr := r.MultipartForm.Value["username"]
-	passwordArr := r.MultipartForm.Value["password"]
-	if len(usernameArr) == 0 || len(passwordArr) == 0 {
-		fmt.Println("username or password empty")
-		w.Write([]byte("fail"))
-		return
-	}
-	//username := r.FormValue("username")
-	//password := r.FormValue("password")
-	username := usernameArr[0]
-	password := passwordArr[0]
+	//if err := r.ParseMultipartForm(10 << 20); err != nil {
+	//	fmt.Println("ParseMultipartForm error:", err)
+	//	w.Write([]byte("fail"))
+	//	return
+	//}
+	//usernameArr := r.MultipartForm.Value["username"]
+	//passwordArr := r.MultipartForm.Value["password"]
+	//if len(usernameArr) == 0 || len(passwordArr) == 0 {
+	//	fmt.Println("username or password empty")
+	//	w.Write([]byte("fail"))
+	//	return
+	//}
+	////username := r.FormValue("username")
+	////password := r.FormValue("password")
+	//username := usernameArr[0]
+	//password := passwordArr[0]
 	if len(username) < 3 || len(password) < 5 {
 		w.Write([]byte("invalid parameter"))
 		return
 	}
 
-	fmt.Println("username:", username)
-	fmt.Println("password:", password)
+	//fmt.Println("username:", username)
+	//fmt.Println("password:", password)
 	//fmt.Println("Received username:", r.FormValue("username"))
 	//fmt.Println("Received password:", r.FormValue("password"))
 
@@ -104,6 +107,20 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("fail"))
 		return
 	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   3600,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "username",
+		Value:    username,
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   3600,
+	})
 
 	//3.登录成功后重定向到首页
 	//w.Write([]byte("success"))
@@ -126,29 +143,84 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // UserInfoHandler :查询用户信息
+//
+//	func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
+//		//1.解析请求参数
+//		//if err := r.ParseForm(); err != nil {
+//		//	fmt.Println("ParseForm error:", err)
+//		//	w.Write([]byte("fail"))
+//		//	return
+//		//}
+//		usernameCookie, err := r.Cookie("username")
+//		if err != nil {
+//			w.WriteHeader(http.StatusUnauthorized)
+//			return
+//		}
+//		tokenCookie, err := r.Cookie("token")
+//		if err != nil {
+//			w.WriteHeader(http.StatusUnauthorized)
+//			return
+//		}
+//		username := usernameCookie.Value
+//		token := tokenCookie.Value
+//		//username := r.FormValue("username")
+//		//token := r.FormValue("token")
+//		////2.验证token是否有效
+//		isValidToken := isTokenValid(username, token)
+//		if !isValidToken {
+//			w.WriteHeader(http.StatusForbidden)
+//			return
+//		}
+//		//3.查询用户信息
+//		user, err := dblayer.GetUserInfo(username)
+//		if err != nil {
+//			w.WriteHeader(http.StatusForbidden)
+//			return
+//		}
+//
+//		//4.组装并响应用户数据
+//		resp := util.RespMsg{
+//			Code: 0,
+//			Msg:  "ok",
+//			Data: user,
+//		}
+//		w.Header().Set("Content-Type", "application/json")
+//		w.Write(resp.JSONBytes())
+//	}
 func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
-	//1.解析请求参数
-	if err := r.ParseForm(); err != nil {
-		fmt.Println("ParseForm error:", err)
-		w.Write([]byte("fail"))
+	// 1. 获取 Cookie
+	usernameCookie, err := r.Cookie("username")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"code":1,"msg":"缺少登录信息"}`))
 		return
 	}
-	username := r.FormValue("username")
-	token := r.FormValue("token")
-	//2.验证token是否有效
-	isValidToken := isTokenValid(username, token)
-	if !isValidToken {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-	//3.查询用户信息
+	//tokenCookie, err := r.Cookie("token")
+	//if err != nil {
+	//	w.WriteHeader(http.StatusUnauthorized)
+	//	w.Write([]byte(`{"code":1,"msg":"缺少登录信息"}`))
+	//	return
+	//}
+
+	username := usernameCookie.Value
+	//token := tokenCookie.Value
+
+	//// 2. 验证 token
+	//if !isTokenValid(username, token) {
+	//	w.WriteHeader(http.StatusUnauthorized)
+	//	w.Write([]byte(`{"code":1,"msg":"登录已过期，请重新登录"}`))
+	//	return
+	//}
+
+	// 3. 查询用户信息
 	user, err := dblayer.GetUserInfo(username)
 	if err != nil {
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"code":2,"msg":"获取用户信息失败"}`))
 		return
 	}
 
-	//4.组装并响应用户数据
+	// 4. 返回 JSON
 	resp := util.RespMsg{
 		Code: 0,
 		Msg:  "ok",

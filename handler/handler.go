@@ -3,12 +3,15 @@ package handler
 import (
 	"encoding/json"
 	"filestore-server/meta"
+	"filestore-server/rd"
 	"filestore-server/util"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"time"
 )
 
@@ -20,6 +23,18 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		//返回上传页面（index.html）
 		http.ServeFile(w, r, "./static/view/index.html")
 	case "POST":
+
+		fileHash := r.FormValue("filehash")
+		// 秒传检测
+		if fileHash != "" {
+
+			if TryFastUploadHandler(fileHash) {
+
+				w.Write([]byte("秒传成功"))
+
+				return
+			}
+		}
 		//解析上传的文件
 		file, header, err := r.FormFile("file")
 		if err != nil {
@@ -180,4 +195,174 @@ func FileQueryHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
 
+}
+
+// 秒传
+func TryFastUploadHandler(fileHash string) bool {
+
+	// 先查Redis
+	loc, err := rd.GetFileHash(fileHash)
+
+	if err == nil && loc != "" {
+		return true
+	}
+
+	// 再查MySQL
+	fileMeta, err := meta.GetFileMetaDB(fileHash)
+
+	if err == nil && fileMeta.FileSha1 != "" {
+
+		// 写入Redis缓存
+		rd.SetFileHash(fileHash, fileMeta.Location)
+
+		return true
+	}
+
+	return false
+}
+
+// 分块上传：UploadChunkHandler：
+func UploadChunkHandler(w http.ResponseWriter, r *http.Request) {
+
+	fileHash := r.FormValue("filehash")
+	index := r.FormValue("index")
+
+	chunkIndex, _ := strconv.Atoi(index)
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "chunk upload failed", 500)
+		return
+	}
+	defer file.Close()
+
+	dir := "./chunks/" + fileHash
+	os.MkdirAll(dir, 0755)
+
+	chunkPath := fmt.Sprintf("%s/%s", dir, index)
+
+	dst, err := os.Create(chunkPath)
+	if err != nil {
+		http.Error(w, "create chunk fail", 500)
+		return
+	}
+	defer dst.Close()
+
+	io.Copy(dst, file)
+
+	// Redis记录
+	util.AddChunk(fileHash, chunkIndex)
+
+	w.Write([]byte("chunk upload success"))
+}
+
+// 断点续传：UploadStatusHandler
+func UploadStatusHandler(w http.ResponseWriter, r *http.Request) {
+
+	fileHash := r.FormValue("filehash")
+
+	chunks, err := util.GetUploadedChunks(fileHash)
+	if err != nil {
+		w.Write([]byte("[]"))
+		return
+	}
+
+	data, _ := json.Marshal(chunks)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	w.Write(data)
+}
+
+// 分块合并：MergeChunkHandler
+func MergeChunkHandler(w http.ResponseWriter, r *http.Request) {
+
+	fileHash := r.FormValue("filehash")
+	fileName := r.FormValue("filename")
+
+	if fileHash == "" || fileName == "" {
+		http.Error(w, "invalid param", http.StatusBadRequest)
+		return
+	}
+
+	chunkDir := "./chunks/" + fileHash
+
+	files, err := os.ReadDir(chunkDir)
+	if err != nil || len(files) == 0 {
+		http.Error(w, "chunk not exist", http.StatusInternalServerError)
+		return
+	}
+
+	// 按chunk序号排序
+	sort.Slice(files, func(i, j int) bool {
+
+		iIndex, _ := strconv.Atoi(files[i].Name())
+		jIndex, _ := strconv.Atoi(files[j].Name())
+
+		return iIndex < jIndex
+	})
+
+	// 创建上传目录
+	os.MkdirAll("./uploads", 0755)
+
+	dstPath := filepath.Join("./uploads", fileName)
+
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		http.Error(w, "create file fail", http.StatusInternalServerError)
+		return
+	}
+	defer dst.Close()
+
+	// 合并chunk
+	for _, f := range files {
+
+		chunkPath := filepath.Join(chunkDir, f.Name())
+
+		chunkFile, err := os.Open(chunkPath)
+		if err != nil {
+			http.Error(w, "open chunk fail", http.StatusInternalServerError)
+			return
+		}
+
+		_, err = io.Copy(dst, chunkFile)
+		chunkFile.Close()
+
+		if err != nil {
+			http.Error(w, "merge chunk fail", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// 获取文件信息
+	stat, err := os.Stat(dstPath)
+	if err != nil {
+		http.Error(w, "stat file fail", http.StatusInternalServerError)
+		return
+	}
+
+	// 生成Meta
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+
+	fileMeta := meta.FileMeta{
+		FileName: fileName,
+		Location: dstPath,
+		UploadAt: time.Now().In(loc),
+		FileSha1: fileHash,
+		FileSize: stat.Size(),
+	}
+
+	// 写入数据库
+	meta.UpdateFileMetaDB(fileMeta)
+
+	// 写入Redis秒传缓存
+	rd.SetFileHash(fileHash, dstPath)
+
+	// 删除Redis chunk记录
+	util.ClearChunks(fileHash)
+
+	// 删除chunk目录
+	os.RemoveAll(chunkDir)
+
+	w.Write([]byte("merge success"))
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"filestore-server/handler"
+	"filestore-server/redis"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 func main() {
 	dir, _ := os.Getwd()
+	redis.InitRedis()
 	fmt.Println("Current working directory:", dir)
 
 	// 提供 /static/ 下的静态文件
@@ -26,6 +28,10 @@ func main() {
 	http.HandleFunc("/user/signup", handler.SignupHandler)
 	http.HandleFunc("/user/signin", handler.SignInHandler)
 	http.HandleFunc("/user/info", handler.HTTPInterceptor(handler.UserInfoHandler))
+
+	http.HandleFunc("/file/upload/chunk", handler.UploadChunkHandler)
+	http.HandleFunc("/file/upload/status", handler.UploadStatusHandler)
+	http.HandleFunc("/file/upload/merge", handler.MergeChunkHandler)
 
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {

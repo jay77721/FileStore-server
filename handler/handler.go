@@ -224,10 +224,24 @@ func TryFastUploadHandler(fileHash string) bool {
 // 分块上传：UploadChunkHandler：
 func UploadChunkHandler(w http.ResponseWriter, r *http.Request) {
 
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	fileHash := r.FormValue("filehash")
 	index := r.FormValue("index")
 
-	chunkIndex, _ := strconv.Atoi(index)
+	if fileHash == "" || index == "" {
+		http.Error(w, "invalid param", http.StatusBadRequest)
+		return
+	}
+
+	chunkIndex, err := strconv.Atoi(index)
+	if err != nil || chunkIndex < 0 {
+		http.Error(w, "invalid chunk index", http.StatusBadRequest)
+		return
+	}
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -235,6 +249,12 @@ func UploadChunkHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+
+	// 已经上传过该分块则直接返回成功，便于断点续传的幂等处理
+	if util.ChunkExists(fileHash, chunkIndex) {
+		w.Write([]byte("chunk already uploaded"))
+		return
+	}
 
 	dir := "./chunks/" + fileHash
 	os.MkdirAll(dir, 0755)
@@ -251,13 +271,18 @@ func UploadChunkHandler(w http.ResponseWriter, r *http.Request) {
 	io.Copy(dst, file)
 
 	// Redis记录
-	util.AddChunk(fileHash, chunkIndex)
+	_ = util.AddChunk(fileHash, chunkIndex)
 
 	w.Write([]byte("chunk upload success"))
 }
 
 // 断点续传：UploadStatusHandler
 func UploadStatusHandler(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
 	fileHash := r.FormValue("filehash")
 
@@ -266,6 +291,13 @@ func UploadStatusHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("[]"))
 		return
 	}
+
+	// 将已上传分块索引按从小到大排序，方便前端处理
+	sort.Slice(chunks, func(i, j int) bool {
+		ii, _ := strconv.Atoi(chunks[i])
+		jj, _ := strconv.Atoi(chunks[j])
+		return ii < jj
+	})
 
 	data, _ := json.Marshal(chunks)
 
@@ -277,8 +309,14 @@ func UploadStatusHandler(w http.ResponseWriter, r *http.Request) {
 // 分块合并：MergeChunkHandler
 func MergeChunkHandler(w http.ResponseWriter, r *http.Request) {
 
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	fileHash := r.FormValue("filehash")
 	fileName := r.FormValue("filename")
+	totalStr := r.FormValue("chunks") // 可选：前端传入总分块数，用于校验
 
 	if fileHash == "" || fileName == "" {
 		http.Error(w, "invalid param", http.StatusBadRequest)
@@ -301,6 +339,16 @@ func MergeChunkHandler(w http.ResponseWriter, r *http.Request) {
 
 		return iIndex < jIndex
 	})
+
+	// 如果提供了总分块数参数，则做一次基本校验，防止遗漏分块
+	if totalStr != "" {
+		if total, err := strconv.Atoi(totalStr); err == nil && total > 0 {
+			if len(files) != total {
+				http.Error(w, "chunk count mismatch", http.StatusBadRequest)
+				return
+			}
+		}
+	}
 
 	// 创建上传目录
 	os.MkdirAll("./uploads", 0755)

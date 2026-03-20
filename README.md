@@ -1,4 +1,4 @@
-# FileStore Server
+# FileStore Server [中文](README_ZH.md)
 
 A lightweight file storage server built with Go, supporting file upload, download, user management, and chunked uploads.
 
